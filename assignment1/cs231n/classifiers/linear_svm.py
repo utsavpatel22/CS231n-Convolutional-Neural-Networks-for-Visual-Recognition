@@ -106,7 +106,12 @@ def svm_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    margins[margins>0] = 1
+    count_valid_margins = margins.sum(axis=1)
+    margins[np.arange(num_train),y ] -= count_valid_margins.T
+    dW = (X.T).dot(margins) / num_train
+
+    dW += reg * 2 * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
