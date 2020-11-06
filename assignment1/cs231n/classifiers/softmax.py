@@ -73,7 +73,22 @@ def softmax_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    num_train = X.shape[0]
+    num_classes = W.shape[1]
+    z_values = X.dot(W)
+    z_values -= np.expand_dims(np.max(z_values, axis=1), axis=1)
+    soft_f = np.exp(z_values) / np.expand_dims(np.sum(np.exp(z_values),axis = 1), axis = 1)
+    values_for_correct_class = soft_f[np.arange(num_train), y]
+    loss += -np.sum(np.log(values_for_correct_class))
+    loss /= num_train
+    loss += reg * np.sum(W * W)
+    y_hot = np.zeros([num_train, num_classes])
+    y_hot[np.arange(num_train), y] = 1
+    dW = (X.T).dot(soft_f - y_hot)
+    dW /= num_train
+    dW += reg * 2 * W
+
+    
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
