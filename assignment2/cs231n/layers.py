@@ -198,7 +198,17 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        x_mean = np.mean(x, axis = 0)
+        x_var = np.var(x, axis = 0) + eps
+        x_std = np.sqrt(x_var)
+        x_temp = (x - x_mean) / x_std
+        out = gamma * x_temp + beta
+
+        running_mean = momentum * running_mean + (1 - momentum) * x_mean
+        running_var = momentum * running_var + (1 - momentum) * x_var
+
+        cache={'x':x,'mean':x_mean,'gamma':gamma,'x_temp':x_temp,'var':x_var}
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -213,7 +223,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        x_temp = (x - running_mean) / (np.sqrt(running_var) + eps)
+        out = gamma * x_temp + beta
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -255,7 +266,34 @@ def batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    #Ref https://kratzert.github.io/2016/02/12/understanding-the-gradient-flow-through-the-batch-normalization-layer.html
+
+    N, D = dout.shape
+
+
+    dgamma = np.sum((dout * cache['x_temp']), axis = 0) 
+    dbeta = np.sum(dout, axis = 0)
+
+    dxhat = dout * cache['gamma']
+
+    dinv = np.sum(dxhat * (cache['x'] - cache['mean']), axis = 0)
+    dxmu = dxhat * (1 / (np.sqrt(cache['var'])))
+
+    dsqrtvar = -(1/((cache['var']))) * dinv
+
+    dvar = 0.5 * (1. /(np.sqrt(cache['var']))) * dsqrtvar
+
+    dsq = 1. /N * np.ones((N,D)) * dvar
+    dxmu2 = 2 * (cache['x'] - cache['mean']) * dsq
+
+    dx1 = dxmu + dxmu2
+    dmu = -1 * np.sum(dx1, axis = 0)
+
+    dx2 = 1. /N * np.ones((N,D)) * dmu
+
+    dx = dx1 + dx2
+
+    
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -290,7 +328,20 @@ def batchnorm_backward_alt(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    #Ref https://kevinzakka.github.io/2016/09/14/batch_normalization/
+
+    N, D = dout.shape
+
+
+    dgamma = np.sum((dout * cache['x_temp']), axis = 0) 
+    dbeta = np.sum(dout, axis = 0)
+
+    dxhat = dout * cache['gamma']
+
+    inv_var = 1/cache['var'] 
+
+    dx = (1. / N) * np.sqrt(inv_var) * (N*dxhat - np.sum(dxhat, axis=0)
+        - cache['x_temp']*np.sum(dxhat*cache['x_temp'], axis=0))
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -336,7 +387,13 @@ def layernorm_forward(x, gamma, beta, ln_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x_mean = np.expand_dims(np.mean(x, axis = 1), axis=1)
+    x_var = np.expand_dims(np.var(x, axis = 1) + eps, axis = 1)
+    x_std = np.sqrt(x_var)
+    x_temp = (x - x_mean) / x_std
+    out = gamma * x_temp + beta
+
+    cache={'x':x,'mean':x_mean,'gamma':gamma,'x_temp':x_temp,'var':x_var}
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -371,7 +428,17 @@ def layernorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, D = dout.shape
+
+    dgamma = np.sum((dout * cache['x_temp']), axis = 0) 
+    dbeta = np.sum(dout, axis = 0)
+
+    dxhat = dout * cache['gamma']
+
+    inv_var = 1/cache['var'] 
+
+    dx = (1. / D) * np.sqrt(inv_var) * (D*dxhat - np.expand_dims(np.sum(dxhat, axis=1), axis=1)
+        - cache['x_temp']*np.expand_dims(np.sum(dxhat*cache['x_temp'], axis=1), axis=1))
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
