@@ -637,34 +637,34 @@ def conv_backward_naive(dout, cache):
     H_out = int(1 + ((H + 2 * pad - HH) / stride))
     W_out = int(1 + ((W + 2 * pad - WW) / stride))
     out = np.zeros((N, F, H_out, W_out))
-    H_padded = H + 2*pad
+    H_padded = H+2*pad
     W_padded = W+2*pad
     x_padded = np.zeros((N, C, H_padded, W_padded))
     for i in range(N):
         for j in range(C):
             x_padded[i, j, :, :] = np.pad(x[i, j, :, :], pad, 'constant', constant_values=0)
 
-    dw = np.zeros((F, C, HH, WW))
-    dx = np.zeros((N, C, H_padded, W_padded))
+    dw = np.zeros((w.shape))
+    dx = np.zeros((x_padded.shape))
     db = np.zeros((F,))
 
+    j_out = 0
+    k_out = 0
     for i in range(N):
-    	for j in range(0, H_padded-HH + 1, stride):
-    		for k in range(0, W_padded-WW + 1, stride):
-    			x_block = x_padded[i, :, j:j+HH, k:k+WW]
-    			for l in range(HH):
-    				for m in range(WW):
-    					for n in range(F):
-    						for c in range(C):
-    							dw[n, c, l, m] += x_block[c, l, m] * dout[i, n, j, k]
-    							dx[i, c, j:j+HH, k:k+WW] += dout[i, n, j, k] * w[n, c, :, :]
-    							db[n] += dout[i, n, j, k]
+        j_out = 0
+        for j in range(0, H_out):
+            k_out = 0
+            for k in range(0, W_out):
+                x_block = x_padded[i, :, j_out:j_out+HH, k_out:k_out+WW]
+                for n in range(F):
+                    for c in range(C):
+                        dw[n, c, :, :] += x_block[c, :, :] * dout[i, n, j, k]
+                        dx[i, c, j_out:j_out+HH, k_out:k_out+WW] += dout[i, n, j, k] * w[n, c, :, :]
+                    db[n] += dout[i, n, j, k]
+                k_out += stride
+            j_out += stride
 
     dx = dx[:,:, pad:H_padded-pad, pad:W_padded-pad] 
-    dx /= (HH * WW) # Divided to normalized the accumulated values because of two extra loops
-    db /= (HH * WW * C)
-
-
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -804,7 +804,10 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, C, H, W = x.shape
+    x = x.transpose(0,2,3,1).reshape(N*H*W, C)
+    out, cache = batchnorm_forward(x, gamma, beta, bn_param)
+    out = out.reshape(N, H, W, C).transpose(0,3,1,2)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -838,7 +841,10 @@ def spatial_batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, C, H, W = dout.shape
+    dout = dout.transpose(0,2,3,1).reshape(N*H*W, C)
+    dx, dgamma, dbeta = batchnorm_backward(dout, cache)
+    dx = dx.reshape(N, H, W, C).transpose(0,3,1,2)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -878,7 +884,18 @@ def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, C, H, W = x.shape
+    size = (N*G, int(C/G) *H*W)
+    x = x.reshape(size).T
+    gamma = gamma.reshape(1, C, 1, 1)
+    beta = beta.reshape(1, C, 1, 1)
+    x_mean = x.mean(axis=0)
+    x_var = x.var(axis=0) + eps
+    x_std = np.sqrt(x_var)
+    x_temp = (x - x_mean)/x_std
+    x_temp = x_temp.T.reshape(N, C, H, W)
+    out = gamma * x_temp	 + beta
+    cache={'std':x_std, 'gamma':gamma, 'x_temp':x_temp, 'size':size}
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -907,8 +924,7 @@ def spatial_groupnorm_backward(dout, cache):
     # This will be extremely similar to the layer norm implementation.        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+ 
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
