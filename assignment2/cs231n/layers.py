@@ -924,7 +924,22 @@ def spatial_groupnorm_backward(dout, cache):
     # This will be extremely similar to the layer norm implementation.        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
- 
+
+    N, C, H, W = dout.shape
+
+    dgamma = np.sum((dout * cache['x_temp']), axis=(0,2,3), keepdims=True) 
+    dbeta = np.sum(dout, axis=(0,2,3), keepdims=True)
+
+    dxhat = dout * cache['gamma']
+    dxhat = dxhat.reshape(cache['size']).T
+    cache['x_temp'] = cache['x_temp'].reshape(cache['size']).T
+
+    inv_var = 1/(cache['std']**2)
+    M = cache['x_temp'].shape[0]
+    
+    dx = ((1. / M) * np.sqrt(inv_var)) * (M*dxhat - np.sum(dxhat, axis=0)
+        - cache['x_temp']*np.sum(dxhat*cache['x_temp'], axis=0))
+    dx = dx.T.reshape((N, C, H, W))
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
