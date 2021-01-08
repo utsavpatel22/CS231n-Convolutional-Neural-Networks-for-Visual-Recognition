@@ -151,7 +151,21 @@ class CaptioningRNN(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        affine_transformed_features, affine_cache = affine_forward(features, W_proj, b_proj)
+        word_vectors_in, word_vector_cache = word_embedding_forward(captions_in, W_embed)
+        if self.cell_type == 'rnn':
+           hidden_states, rnn_cache = rnn_forward(word_vectors_in, affine_transformed_features, Wx, Wh, b)
+        else:
+           pass
+        scores, temporal_affine_cache = temporal_affine_forward(hidden_states, W_vocab, b_vocab)
+        loss, dout = temporal_softmax_loss(scores, captions_out, mask, verbose=False)
+        dh, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dout, temporal_affine_cache)
+        if self.cell_type == 'rnn':
+            dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dh, rnn_cache)
+        else:
+            pass
+        grads['W_embed'] = word_embedding_backward(dx, word_vector_cache)
+        dx, grads["W_proj"], grads["b_proj"] = affine_backward(dh0, affine_cache)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -219,7 +233,25 @@ class CaptioningRNN(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        h0, affine_cache = affine_forward(features, W_proj, b_proj)
+        start_x = self._start * np.ones((N, 1), dtype=np.int32)
+        if self.cell_type == 'rnn':
+            x,_ = word_embedding_forward(start_x, W_embed)
+            next_h,_ = rnn_forward(x, h0, Wx, Wh, b)
+            scores,_ = temporal_affine_forward(next_h, W_vocab, b_vocab)
+            caption_indices = np.argmax(scores, axis=2)
+            captions[:, 0] = np.squeeze(caption_indices)
+            x,_ = word_embedding_forward(caption_indices, W_embed)
+            prev_h = next_h
+            for i in range(1, max_length):
+                next_h,_ = rnn_step_forward(x, prev_h, Wx, Wh, b)
+                scores,_ = temporal_affine_forward(next_h, W_vocab, b_vocab)
+                caption_indices = np.argmax(scores, axis=2)
+                captions[:, i] = np.squeeze(caption_indices)
+                x,_ = word_embedding_forward(caption_indices, W_embed)
+                prev_h = next_h
+
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
