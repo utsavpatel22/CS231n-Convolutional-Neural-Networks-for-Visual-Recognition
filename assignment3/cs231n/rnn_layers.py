@@ -310,6 +310,8 @@ def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b):
     next_c = (f * prev_c) + (i * g)
     next_h = o * ((2 / (1 + np.exp(-2*next_c))) - 1)
 
+    cache = (x, prev_h, prev_c, i, f, o, g, next_c, Wx, Wh)
+
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
     #                               END OF YOUR CODE                             #
@@ -344,7 +346,36 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, prev_h, prev_c, i, f, o, g, next_c, Wx, Wh = cache
+    N, D = x.shape
+    _, H = prev_h.shape
+    dtanh_next_c = (1 - ((2 / (1 + np.exp(-2*next_c))) - 1)**2)
+    dprev_c = f*((dnext_h * o * dtanh_next_c) + dnext_c)
+
+    do = dnext_h * ((2 / (1 + np.exp(-2*next_c))) - 1)
+    df = prev_c * ((dnext_h * o * dtanh_next_c) + dnext_c)
+    di = g * ((dnext_h * o * dtanh_next_c) + dnext_c)
+    dg = i * ((dnext_h * o * dtanh_next_c) + dnext_c)
+
+    da_i = di * (i*(1-i))
+    da_f = df * (f*(1-f))
+    da_o = do * (o*(1-o))
+    da_g = dg * (1-g**2)
+
+    dA = np.zeros((N,4*H))
+    dA[:, :H] = da_i
+    dA[:, H:(2*H)] = da_f
+    dA[:, (2*H):(3*H)] = da_o
+    dA[:, (3*H):(4*H)] = da_g
+
+    db = np.sum(dA, axis=0)
+    dWx = x.T.dot(dA)
+    dx = dA.dot(Wx.T)
+    dprev_h = dA.dot(Wh.T)
+    dWh = prev_h.T.dot(dA)
+
+
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
