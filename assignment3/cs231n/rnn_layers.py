@@ -294,7 +294,21 @@ def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, D = x.shape
+    _, H = prev_h.shape
+    A = np.matmul(prev_h, Wh) + np.matmul(x, Wx) + b
+    a_i = A[:,:H]
+    a_f = A[:,H:(2*H)]
+    a_o = A[:, (2*H):(3*H)]
+    a_g = A[:, (3*H):(4*H)]
+
+    i = sigmoid(a_i)
+    f = sigmoid(a_f)
+    o = sigmoid(a_o)
+    g = (2 / (1 + np.exp(-2*a_g))) - 1
+
+    next_c = (f * prev_c) + (i * g)
+    next_h = o * ((2 / (1 + np.exp(-2*next_c))) - 1)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
