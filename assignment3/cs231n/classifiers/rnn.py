@@ -156,14 +156,14 @@ class CaptioningRNN(object):
         if self.cell_type == 'rnn':
            hidden_states, rnn_cache = rnn_forward(word_vectors_in, affine_transformed_features, Wx, Wh, b)
         else:
-           pass
+           hidden_states, lstm_cache = lstm_forward(word_vectors_in, affine_transformed_features, Wx, Wh, b)
         scores, temporal_affine_cache = temporal_affine_forward(hidden_states, W_vocab, b_vocab)
         loss, dout = temporal_softmax_loss(scores, captions_out, mask, verbose=False)
         dh, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dout, temporal_affine_cache)
         if self.cell_type == 'rnn':
             dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dh, rnn_cache)
         else:
-            pass
+            dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = lstm_backward(dh, lstm_cache)
         grads['W_embed'] = word_embedding_backward(dx, word_vector_cache)
         dx, grads["W_proj"], grads["b_proj"] = affine_backward(dh0, affine_cache)
 
@@ -246,10 +246,35 @@ class CaptioningRNN(object):
             for i in range(1, max_length):
                 next_h,_ = rnn_step_forward(x, prev_h, Wx, Wh, b)
                 scores,_ = temporal_affine_forward(next_h, W_vocab, b_vocab)
+
                 caption_indices = np.argmax(scores, axis=2)
                 captions[:, i] = np.squeeze(caption_indices)
                 x,_ = word_embedding_forward(caption_indices, W_embed)
                 prev_h = next_h
+
+        else:
+            x,_ = word_embedding_forward(start_x, W_embed)
+            next_h, cache_tmp = lstm_forward(x, h0, Wx, Wh, b)
+            x_tmp, prev_h_tmp, prev_c_tmp, i_tmp, f_tmp, o_tmp, g_tmp, next_c, Wx_tmp, Wh_tmp = cache_tmp[0]
+            scores,_ = temporal_affine_forward(next_h, W_vocab, b_vocab)
+            caption_indices = np.argmax(scores, axis=2)
+            captions[:, 0] = np.squeeze(caption_indices)
+            x,_ = word_embedding_forward(caption_indices, W_embed)
+            x = np.reshape(x, (x.shape[0], (x.shape[1]*x.shape[2])))
+            prev_h = next_h
+            prev_h = np.reshape(prev_h, (prev_h.shape[0], (prev_h.shape[1]*prev_h.shape[2])))
+            prev_c = next_c
+            for i in range(1, max_length):
+                next_h, next_c, _ = lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b)
+                next_h = np.reshape(next_h, (next_h.shape[0], 1, next_h.shape[1]))
+                scores,_ = temporal_affine_forward(next_h, W_vocab, b_vocab)
+                caption_indices = np.argmax(scores, axis=2)
+                captions[:, i] = np.squeeze(caption_indices)
+                x,_ = word_embedding_forward(caption_indices, W_embed)
+                x = np.reshape(x, (x.shape[0], (x.shape[1]*x.shape[2])))
+                prev_h = next_h
+                prev_h = np.reshape(prev_h, (prev_h.shape[0], (prev_h.shape[1]*prev_h.shape[2])))
+                prev_c = next_c
 
 
 
