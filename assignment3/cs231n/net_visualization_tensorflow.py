@@ -35,7 +35,17 @@ def compute_saliency_maps(X, y, model):
     ###############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, H, W, _ = X.shape
+    X = tf.convert_to_tensor(X)
+    with tf.GradientTape() as tape:
+        tape.watch(X)
+        scores = model.call(X)
+        scores = tf.gather_nd(scores, tf.stack((tf.range(N), y), axis=1))
+        grad_X = tape.gradient(scores, X)
+        grad_X = tf.math.abs(grad_X, name=None)
+        grad_X = tf.math.reduce_max(grad_X, axis=3, keepdims=False, name=None)
+        saliency = grad_X
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -84,7 +94,21 @@ def make_fooling_image(X, target_y, model):
     ##############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, H, W, _ = X_fooling.shape
+    X_fooling = tf.convert_to_tensor(X_fooling)
+    
+    while True:
+	    with tf.GradientTape() as tape:
+	        tape.watch(X_fooling)
+	        scores = model.call(X_fooling)
+	        max_score = tf.math.reduce_max(scores, axis=None, keepdims=False, name=None)
+	        max_index = tf.math.argmax(scores[0], axis=None, output_type=tf.dtypes.int64, name=None)
+	        print("predicted Index: ", max_index)
+	        if max_index == target_y:
+	        	break
+	        grad_X = tape.gradient(scores[0][target_y], X_fooling)
+	        norm_grad_X = tf.linalg.normalize(grad_X, ord='euclidean', axis=None, name=None)
+	        X_fooling = X_fooling + (learning_rate * (norm_grad_X[0]))
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ##############################################################################
@@ -103,7 +127,16 @@ def class_visualization_update_step(X, model, target_y, l2_reg, learning_rate):
     ########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, H, W, _ = X.shape
+    X = tf.convert_to_tensor(X)
+
+    with tf.GradientTape() as tape:
+        tape.watch(X)
+        scores = model.call(X)
+        X_scores_normalized = scores[0][target_y] -l2_reg * tf.square(tf.norm(X, ord=2))
+        grad_X = tape.gradient(X_scores_normalized, X)
+        norm_grad_X = tf.linalg.normalize(grad_X, ord='euclidean', axis=None, name=None)
+        X = X + (learning_rate * norm_grad_X[0])
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ############################################################################
