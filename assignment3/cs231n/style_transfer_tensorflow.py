@@ -16,7 +16,15 @@ def tv_loss(img, tv_weight):
     # Your implementation should be vectorized and not require any loops!
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    _, h, w, c = img.shape
+    loss = 0
+    img_row_op_1 = tf.slice(img, [0, 1, 0, 0], [1, h-1, w, 3])
+    img_row_op_2 = tf.slice(img, [0, 0, 0, 0], [1, h-1, w, 3])
+    img_col_op_1 = tf.slice(img, [0, 0, 1, 0], [1, h, w-1, 3])
+    img_col_op_2 = tf.slice(img, [0, 0, 0, 0], [1, h, w-1, 3])
+
+    loss = tv_weight * (tf.math.reduce_sum((tf.math.square(img_row_op_1 - img_row_op_2))) + tf.math.reduce_sum((tf.math.square(img_col_op_1 - img_col_op_2)))) 
+    return loss
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -41,8 +49,14 @@ def style_loss(feats, style_layers, style_targets, style_weights):
     # Hint: you can do this with one for loop over the style layers, and should
     # not be short code (~5 lines). You will need to use your gram_matrix function.
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    style_loss = 0
+    n = len(style_layers)
+    for i in range(0, n):
+        gram_matrix_current = gram_matrix(feats[style_layers[i]], normalize=True)
+        style_loss += style_weights[i]*tf.math.reduce_sum((tf.math.square(tf.math.subtract(gram_matrix_current, style_targets[i], name=None))))
 
-    pass
+    return style_loss
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -62,7 +76,14 @@ def gram_matrix(features, normalize=True):
     """
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    _, h, w, c = features.shape
+    features = tf.reshape(features, [h*w, c], name=None)
+    gram = tf.linalg.matmul(features, features, transpose_a=True, transpose_b=False)
+
+    if normalize:
+        gram = tf.math.divide(gram, h*w*c, name=None)
+
+    return gram
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -80,7 +101,8 @@ def content_loss(content_weight, content_current, content_original):
     """
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    loss = content_weight * tf.math.reduce_sum(tf.math.square((content_current - content_original), name=None), axis=None, keepdims=False, name=None)
+    return loss
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
